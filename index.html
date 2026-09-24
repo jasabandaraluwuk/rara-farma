@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Apotek Rara Farma</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#f0f5fb;--surface:#fff;--border:#e3eaf4;
+  --primary:#1557e8;--primary-light:#eff4ff;
+  --text:#0f1928;--muted:#6b7a99;
+  --success:#15803d;--success-bg:#dcfce7;
+  --danger:#dc2626;--danger-bg:#fee2e2;
+  --warning:#b45309;--warning-bg:#fef3c7;
+  --info-bg:#dbeafe;--info:#1d4ed8;
+  --purple:#7c3aed;--purple-bg:#f3e8ff;
+  --radius:14px;--shadow:0 2px 12px rgba(15,25,40,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text)}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+
+/* LOGIN */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1557e8,#0a2d7a);padding:20px}
+.login-card{background:#fff;border-radius:24px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.login-logo-icon{width:48px;height:48px;background:var(--primary);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.login-logo-text{font-weight:800;font-size:19px;line-height:1.1}
+.login-logo-sub{font-size:11.5px;color:var(--muted)}
+.login-err{background:var(--danger-bg);color:var(--danger);padding:10px 14px;border-radius:9px;font-size:13px;font-weight:600;margin-bottom:14px;display:none}
+
+/* APP */
+#app{display:none;height:100vh;flex-direction:column}
+#topbar{background:#fff;border-bottom:1.5px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px}
+.topbar-badge{padding:4px 12px;border-radius:8px;font-size:12.5px;font-weight:700}
+.badge-superadmin{background:var(--purple-bg);color:var(--purple)}
+.badge-apotek{background:var(--primary-light);color:var(--primary)}
+.topbar-right{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);font-weight:600}
+.btn-logout{cursor:pointer;border:1.5px solid var(--border);background:#fff;border-radius:9px;padding:6px 14px;font-size:13px;font-weight:700;color:var(--danger);font-family:inherit;transition:all .15s}
+.btn-logout:hover{background:var(--danger-bg)}
+#body{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+#sidebar{width:220px;background:#fff;border-right:1.5px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+nav{padding:12px 10px;flex:1}
+.nav-item{display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--muted);transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:#f1f5fb;color:var(--text)}
+.nav-item.active{background:var(--primary-light);color:var(--primary)}
+.nav-sep{height:1px;background:var(--border);margin:8px 10px}
+.nav-label{padding:6px 11px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.nav-badge{margin-left:auto;background:var(--danger);color:#fff;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700}
+.nav-badge.warn{background:#f59e0b}
+.sidebar-footer{padding:12px 16px;font-size:11px;color:var(--muted);border-top:1.5px solid var(--border)}
+
+/* MAIN */
+#main{flex:1;overflow-y:auto;padding:26px 28px}
+.page{display:none;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.page-title{font-size:22px;font-weight:800}
+
+/* CARDS */
+.card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border:1.5px solid var(--border)}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1.5px solid var(--border);border-top:4px solid var(--c)}
+.stat-label{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.stat-val{font-size:24px;font-weight:800;color:var(--c)}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:3px}
+
+/* TABLE */
+.tbl-wrap{background:#fff;border-radius:var(--radius);border:1.5px solid var(--border);overflow:auto;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:10px 14px;background:#f8fafc;color:var(--muted);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tr:hover td{background:#fafbfd}
+
+/* BADGES */
+.badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.bg-green{background:var(--success-bg);color:var(--success)}
+.bg-red{background:var(--danger-bg);color:var(--danger)}
+.bg-yellow{background:var(--warning-bg);color:var(--warning)}
+.bg-blue{background:var(--info-bg);color:var(--info)}
+.bg-gray{background:#f1f5f9;color:#64748b}
+.bg-purple{background:var(--purple-bg);color:var(--purple)}
+
+/* BUTTONS */
+.btn{cursor:pointer;border:none;border-radius:9px;font-family:inherit;font-weight:700;transition:all .15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.btn:active{transform:none}
+.btn-primary{background:var(--primary);color:#fff;padding:10px 18px;font-size:14px}
+.btn-danger{background:var(--danger);color:#fff;padding:7px 13px;font-size:12.5px}
+.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border);padding:7px 13px;font-size:12.5px}
+.btn-ghost:hover{background:#f1f5f9;color:var(--text)}
+.btn-warning{background:#f59e0b;color:#fff;padding:7px 13px;font-size:12.5px}
+.btn-purple{background:var(--purple);color:#fff;padding:10px 18px;font-size:14px}
+
+/* INPUTS */
+input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--text)}
+.inp{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;background:#fff;outline:none;transition:border-color .15s}
+.inp:focus{border-color:var(--primary)}
+.form-label{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:5px;display:block}
+.form-group{margin-bottom:14px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.full{grid-column:1/-1}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:18px;padding:26px;width:500px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-title{font-size:17px;font-weight:800;margin-bottom:20px}
+
+/* CASHIER */
+.cashier-layout{display:grid;grid-template-columns:1fr 340px;gap:20px;height:calc(100vh - 140px)}
+.drug-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:11px;align-content:start}
+.drug-card{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:all .15s}
+.drug-card:hover{border-color:var(--primary);box-shadow:0 4px 14px rgba(21,87,232,.13);transform:translateY(-2px)}
+.cart-wrap{display:flex;flex-direction:column;gap:10px;height:100%;overflow:hidden}
+.cart-items{flex:1;overflow-y:auto}
+.cart-item{padding:9px 0;border-bottom:1px solid #f1f5f9}
+.qty-btn{width:28px;height:28px;border:1.5px solid var(--border);border-radius:7px;background:#fff;cursor:pointer;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.qty-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+.total-line{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;padding:4px 0}
+.total-line.big{font-size:18px;font-weight:800}
+
+/* UNIT BADGES */
+.unit-tablet{background:#e0f2fe;color:#0369a1}
+.unit-strip{background:#f0fdf4;color:#166534}
+.unit-dus{background:#fef9c3;color:#854d0e}
+.unit-kapsul{background:#fdf2f8;color:#9d174d}
+.unit-botol{background:#fff7ed;color:#9a3412}
+.unit-lainnya{background:#f1f5f9;color:#475569}
+
+/* PROGRESS */
+.prog-wrap{margin-bottom:13px}
+.prog-label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.prog-bar{background:#f0f4f8;border-radius:99px;height:7px}
+.prog-fill{background:var(--primary);height:100%;border-radius:99px;transition:width .6s}
+
+/* RECEIPT */
+.receipt{font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7}
+.receipt .sep{border-top:1px dashed #ccc;margin:10px 0}
+
+/* APOTEK CARD (superadmin) */
+.apotek-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);transition:all .15s}
+.apotek-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.apotek-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.apotek-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.apotek-status-active{background:var(--success-bg);color:var(--success)}
+.apotek-status-inactive{background:#f1f5f9;color:#64748b}
+.pw-field{display:flex;align-items:center;gap:8px}
+.pw-text{font-family:'JetBrains Mono',monospace;font-size:13px;background:#f8fafc;padding:4px 10px;border-radius:7px;border:1px solid var(--border);flex:1;letter-spacing:.05em}
+
+/* LOG TABLE */
+.log-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:13px}
+
+/* FILTER */
+.filter-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.filter-row .inp{max-width:260px}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast-item{padding:13px 18px;border-radius:11px;font-weight:700;font-size:13.5px;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.18);animation:toastIn .3s ease}
+.toast-ok{background:#16a34a}.toast-err{background:#dc2626}.toast-info{background:var(--primary)}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+.info-box{background:var(--primary-light);border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#1e40af;margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">💊</div>
+      <div><div class="login-logo-text">Apotek Rara Farma</div><div class="login-logo-sub">Sistem Manajemen Apotek</div></div>
+    </div>
+    <div style="font-size:22px;font-weight:800;margin-bottom:6px">Selamat Datang</div>
+    <div style="font-size:13.5px;color:var(--muted);margin-bottom:24px">Masukkan username dan kata sandi untuk masuk</div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="inp" id="login-user" placeholder="Username" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Kata Sandi</label>
+      <div style="position:relative">
+        <input type="password" class="inp" id="login-pass" placeholder="Kata sandi" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:44px"/>
+        <button onclick="togglePw()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted)" id="pw-eye">👁</button>
+      </div>
+    </div>
+    <div class="login-err" id="login-err">Username atau kata sandi salah!</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:15px" onclick="doLogin()">Masuk →</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;flex-direction:column;height:100vh">
+  <div id="topbar">
+    <div class="topbar-brand">
+      <span style="font-size:22px">💊</span>
+      Apotek Rara Farma
+      <span class="topbar-badge" id="topbar-badge">—</span>
+    </div>
+    <div class="topbar-right">
+      <span id="topbar-user">—</span>
+      <button class="btn-logout" onclick="doLogout()">⏏ Keluar</button>
+    </div>
+  </div>
+  <div id="body">
+    <div id="sidebar">
+      <nav id="sidebar-nav"></nav>
+      <div class="sidebar-footer" id="sidebar-date"></div>
+    </div>
+    <div id="main">
+
+      <!-- SUPERADMIN PAGES -->
+      <div class="page" id="page-sa-dashboard"></div>
+      <div class="page" id="page-sa-apoteks">
+        <div class="page-header">
+          <div class="page-title">Manajemen Apotek</div>
+          <button class="btn btn-purple" onclick="openApotekModal()">+ Tambah Apotek</button>
+        </div>
+        <div id="apotek-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px"></div>
+      </div>
+      <div class="page" id="page-sa-monitor">
+        <div class="page-header">
+          <div class="page-title">Monitor Semua Apotek</div>
+          <select class="inp" id="monitor-period" style="width:160px" onchange="renderMonitor()">
+            <option value="today">Hari Ini</option>
+            <option value="week">7 Hari Terakhir</option>
+            <option value="month">Bulan Ini</option>
+            <option value="all">Semua</option>
+          </select>
+        </div>
+        <div id="monitor-content"></div>
+      </div>
+      <div class="page" id="page-sa-logs">
+        <div class="page-header"><div class="page-title">Log Aktivitas Login</div></div>
+        <div class="card" id="log-content"></div>
+      </div>
+
+      <!-- APOTEK PAGES -->
+      <div class="page" id="page-dashboard"></div>
+      <div class="page" id="page-cashier">
+        <div class="page-header"><div class="page-title">Kasir / POS</div></div>
+        <div class="cashier-layout">
+          <div style="display:flex;flex-direction:column;gap:12px;overflow:hidden">
+            <input class="inp" id="drug-search" placeholder="🔍 Cari nama obat..." oninput="renderDrugGrid()"/>
+            <div id="drug-grid" class="drug-grid" style="overflow-y:auto;flex:1"></div>
+          </div>
+          <div class="card cart-wrap">
+            <div style="font-weight:800;font-size:15px">🛒 Keranjang</div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Pelanggan</label>
+              <input class="inp" id="cart-customer" value="Umum" list="cust-datalist"/>
+              <datalist id="cust-datalist"></datalist>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">No. Resep (opsional)</label>
+              <input class="inp" id="cart-resep" placeholder="R/..."/>
+            </div>
+            <div class="cart-items" id="cart-items">
+              <div style="text-align:center;color:var(--muted);padding:30px 0;font-size:13px">Pilih obat dari daftar</div>
+            </div>
+            <div id="cart-summary"></div>
+          </div>
+        </div>
+      </div>
+      <div class="page" id="page-drugs">
+        <div class="page-header">
+          <div class="page-title">Data Obat</div>
+          <button class="btn btn-primary" onclick="openDrugModal()">+ Tambah Obat</button>
+        </div>
+        <div class="filter-row">
+          <input class="inp" id="drug-search2" placeholder="🔍 Cari nama / no. batch..." oninput="renderDrugsTable()"/>
+          <select class="inp" id="unit-filter" style="max-width:160px" onchange="renderDrugsTable()">
+            <option value="">Semua Satuan</option>
+            <option>Tablet</option><option>Kapsul</option><option>Strip</option>
+            <option>Dus</option><option>Botol</option><option>Sachet</option><option>Lainnya</option>
+          </select>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>Nama Obat</th><th>No. Batch</th><th>Satuan</th><th>Stok</th><th>Harga Jual</th><th>Harga Beli</th><th>Tgl ED</th><th>Supplier</th><th></th></tr></thead><tbody id="drugs-tbody"></tbody></table></div>
+      </div>
+      <div class="page" id="page-expired">
+        <div class="page-header"><div class="page-title">Manajemen Expired Obat</div></div>
+        <div id="expired-content"></div>
+      </div>
+      <div class="page" id="page-sales">
+        <div class="page-header"><div class="page-title">Riwayat Penjualan</div></div>
+        <div class="filter-row">
+          <input class="inp" id="sales-search" placeholder="🔍 Cari pelanggan / obat..." oninput="renderSalesTable()"/>
+          <input type="date" class="inp" id="sales-from" style="max-width:160px" onchange="renderSalesTable()"/>
+          <span style="align-self:center;color:var(--muted);font-size:13px">s/d</span>
+          <input type="date" class="inp" id="sales-to" style="max-width:160px" onchange="renderSalesTable()"/>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>No. Transaksi</th><th>Tanggal</th><th>Pelanggan</th><th>Item</th><th>Total</th><th>Bayar</th><th>Kembalian</th><th>Resep</th><th></th></tr></thead><tbody id="sales-tbody"></tbody></table></div>
+      </div>
+      <div class="page" id="page-customers">
+        <div class="page-header">
+          <div class="page-title">Data Pelanggan</div>
+          <button class="btn btn-primary" onclick="openCustModal()">+ Tambah Pelanggan</button>
+        </div>
+        <div class="filter-row">
+          <input class="inp" id="cust-search" placeholder="🔍 Cari nama / telepon..." oninput="renderCustTable()"/>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>Nama</th><th>Telepon</th><th>Alamat</th><th>Total Transaksi</th><th>Total Belanja</th><th></th></tr></thead><tbody id="cust-tbody"></tbody></table></div>
+      </div>
+      <div class="page" id="page-reports">
+        <div class="page-header">
+          <div class="page-title">Laporan</div>
+          <select class="inp" id="report-period" style="width:170px" onchange="renderReports()">
+            <option value="today">Hari Ini</option><option value="week">7 Hari Terakhir</option>
+            <option value="month">Bulan Ini</option><option value="all">Semua</option>
+          </select>
+        </div>
+        <div class="stat-grid" id="report-stats"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="card" id="report-terlaris"></div>
+          <div class="card" id="report-detail"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="modal-area"></div>
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// FIREBASE INIT
+// ══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyB1f0omP7pbFgXGIGgpmmZYHxcGEmSUx7g",
+  authDomain: "rara-farma.firebaseapp.com",
+  projectId: "rara-farma",
+  storageBucket: "rara-farma.firebasestorage.app",
+  messagingSenderId: "273091064689",
+  appId: "1:273091064689:web:a026a8a78ae7d1ab71bcd0"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+let fbReady = false;
+let fbOnlineBadgeShown = false;
+
+function showConnStatus(online){
+  if(fbOnlineBadgeShown) return;
+  fbOnlineBadgeShown = true;
+  showToast(online?"Terhubung ke database online":"Mode offline — perubahan tersimpan lokal", online?"ok":"err");
+  setTimeout(()=>{fbOnlineBadgeShown=false;},4000);
+}
+
+// ══════════════════════════════════════════════
+// SUPERADMIN CONFIG
+// ══════════════════════════════════════════════
+const SUPERADMIN = {username:"superadmin", password:"RaraFarma@2024"};
+
+// ══════════════════════════════════════════════
+// LOCAL CACHE (kept in sync with Firestore in realtime)
+// This lets all existing render functions stay synchronous —
+// they just read from this cache, while writes go to Firestore
+// and the cache updates automatically via onSnapshot listeners.
+// ══════════════════════════════════════════════
+let cache = {
+  apoteks: null,   // array
+  drugs: {},       // { apotekId: array }
+  sales: {},       // { apotekId: array }
+  customers: {},   // { apotekId: array }
+  logs: [],        // array
+};
+let unsubscribers = []; // active onSnapshot listeners to clean up on logout
+
+function clearListeners(){
+  unsubscribers.forEach(u=>{try{u();}catch(e){}});
+  unsubscribers=[];
+}
+
+// ══════════════════════════════════════════════
+// APOTEK MANAGEMENT (Firestore: collection "apoteks")
+// ══════════════════════════════════════════════
+async function ensureDefaultApotek(){
+  const snap = await db.collection("apoteks").get();
+  if(snap.empty){
+    await db.collection("apoteks").doc("rara_farma").set({
+      id:"rara_farma",name:"Apotek Rara Farma",address:"Luwuk, Kabupaten Banggai",icon:"💊",
+      username:"admin",password:"admin123",active:true,createdAt:todayStr()
+    });
+  }
+}
+
+function listenApoteks(cb){
+  const unsub = db.collection("apoteks").onSnapshot(snap=>{
+    cache.apoteks = snap.docs.map(d=>d.data());
+    showConnStatus(true);
+    if(cb) cb();
+    // Auto-refresh visible superadmin pages when apotek data changes
+    if(session && session.type==="superadmin"){
+      const active=document.querySelector(".page.active");
+      if(active){
+        if(active.id==="page-sa-dashboard")renderSADashboard();
+        if(active.id==="page-sa-apoteks")renderApotekCards();
+        if(active.id==="page-sa-monitor")renderMonitor();
+      }
+    }
+  }, err=>{
+    console.error(err);
+    showConnStatus(false);
+  });
+  unsubscribers.push(unsub);
+}
+
+function getApoteks(){
+  return cache.apoteks || [];
+}
+async function saveApoteksSingle(apotek){
+  await db.collection("apoteks").doc(apotek.id).set(apotek);
+}
+async function deleteApotekDoc(id){
+  await db.collection("apoteks").doc(id).delete();
+  // Also delete subcollections (drugs/sales/customers)
+  for(const col of ["drugs","sales","customers"]){
+    const snap = await db.collection("apoteks").doc(id).collection(col).get();
+    const batch = db.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    if(!snap.empty) await batch.commit();
+  }
+}
+
+// ══════════════════════════════════════════════
+// SEED DATA OBAT
+// ══════════════════════════════════════════════
+const SEED_DRUGS=[
+  {id:1,name:"Paracetamol 500mg",batch:"BCH-2024-001",unitJual:"Tablet",unitStrip:10,unitDus:10,price:500,cost:250,stock:120,minStock:20,expiry:"2026-12-31",supplier:"Kimia Farma"},
+  {id:2,name:"Amoxicillin 500mg",batch:"BCH-2024-002",unitJual:"Strip",unitStrip:10,unitDus:10,price:15000,cost:8000,stock:30,minStock:10,expiry:"2026-08-15",supplier:"Dexa Medica"},
+  {id:3,name:"Omeprazole 20mg",batch:"BCH-2024-003",unitJual:"Kapsul",unitStrip:10,unitDus:5,price:2000,cost:1000,stock:55,minStock:15,expiry:"2025-11-30",supplier:"Kalbe Farma"},
+  {id:4,name:"Cetirizine 10mg",batch:"BCH-2024-004",unitJual:"Tablet",unitStrip:10,unitDus:10,price:500,cost:250,stock:200,minStock:40,expiry:"2027-03-20",supplier:"Sanbe Farma"},
+  {id:5,name:"Metformin 500mg",batch:"BCH-2024-005",unitJual:"Tablet",unitStrip:10,unitDus:10,price:600,cost:300,stock:10,minStock:25,expiry:"2026-06-10",supplier:"Kimia Farma"},
+  {id:6,name:"Vitamin C 500mg",batch:"BCH-2024-006",unitJual:"Tablet",unitStrip:10,unitDus:10,price:300,cost:150,stock:300,minStock:50,expiry:"2027-09-01",supplier:"Kalbe Farma"},
+];
+const SATUAN_LIST=["Tablet","Kapsul","Strip","Dus","Botol","Sachet","Lainnya"];
+
+// ══════════════════════════════════════════════
+// SESSION STATE
+// ══════════════════════════════════════════════
+let session = null; // {type:"superadmin"} or {type:"apotek", apotek:{...}}
+let cart = [];
+
+// ══════════════════════════════════════════════
+// STORAGE HELPERS (per apotek) — Firestore-backed with local cache
+// ══════════════════════════════════════════════
+function apotekRef(){ return db.collection("apoteks").doc(session.apotek.id); }
+
+function listenApotekData(cb){
+  const aid = session.apotek.id;
+  if(!cache.drugs[aid]) cache.drugs[aid]=JSON.parse(JSON.stringify(SEED_DRUGS));
+  if(!cache.sales[aid]) cache.sales[aid]=[];
+  if(!cache.customers[aid]) cache.customers[aid]=[{id:1,name:"Budi Santoso",phone:"08123456789",address:"Jl. Merdeka No.1"}];
+
+  const u1 = apotekRef().collection("meta").doc("drugs").onSnapshot(doc=>{
+    if(doc.exists) cache.drugs[aid]=doc.data().items||[];
+    else apotekRef().collection("meta").doc("drugs").set({items:cache.drugs[aid]});
+    showConnStatus(true);
+    if(cb) cb("drugs");
+    refreshCurrentPage();
+  }, err=>{console.error(err);showConnStatus(false);});
+
+  const u2 = apotekRef().collection("meta").doc("sales").onSnapshot(doc=>{
+    if(doc.exists) cache.sales[aid]=doc.data().items||[];
+    else apotekRef().collection("meta").doc("sales").set({items:[]});
+    if(cb) cb("sales");
+    refreshCurrentPage();
+  }, err=>console.error(err));
+
+  const u3 = apotekRef().collection("meta").doc("customers").onSnapshot(doc=>{
+    if(doc.exists) cache.customers[aid]=doc.data().items||[];
+    else apotekRef().collection("meta").doc("customers").set({items:cache.customers[aid]});
+    if(cb) cb("customers");
+    refreshCurrentPage();
+  }, err=>console.error(err));
+
+  unsubscribers.push(u1,u2,u3);
+}
+
+function getDrugs(){return cache.drugs[session.apotek.id]||[];}
+function getSales(){return cache.sales[session.apotek.id]||[];}
+function getCustomers(){return cache.customers[session.apotek.id]||[];}
+
+async function saveDrugs(v){
+  cache.drugs[session.apotek.id]=v;
+  await apotekRef().collection("meta").doc("drugs").set({items:v});
+}
+async function saveSales(v){
+  cache.sales[session.apotek.id]=v;
+  await apotekRef().collection("meta").doc("sales").set({items:v});
+}
+async function saveCustomers(v){
+  cache.customers[session.apotek.id]=v;
+  await apotekRef().collection("meta").doc("customers").set({items:v});
+}
+
+let idCounterCache = {};
+async function bumpId(){
+  const aid = session.apotek.id;
+  const ref = apotekRef().collection("meta").doc("counter");
+  const newId = await db.runTransaction(async(tx)=>{
+    const doc = await tx.get(ref);
+    const cur = doc.exists ? (doc.data().value||200) : 200;
+    const next = cur+1;
+    tx.set(ref,{value:next});
+    return next;
+  });
+  return newId;
+}
+
+// LOG
+async function addLog(apotekId,apotekName,username){
+  await db.collection("logs").add({apotekId,apotekName,username,time:new Date().toLocaleString("id-ID"),date:todayStr(),ts:Date.now()});
+}
+function listenLogs(cb){
+  const unsub = db.collection("logs").orderBy("ts","desc").limit(200).onSnapshot(snap=>{
+    cache.logs = snap.docs.map(d=>d.data());
+    if(cb) cb();
+  }, err=>console.error(err));
+  unsubscribers.push(unsub);
+}
+function getLogs(){ return cache.logs || []; }
+
+// Helper: fetch sales+drugs summary for ANY apotek (superadmin views)
+let saDataCache = {}; // {apotekId: {sales, drugs, ts}}
+async function fetchApotekSummary(apotekId){
+  const cached = saDataCache[apotekId];
+  if(cached && (Date.now()-cached.ts)<15000) return cached; // 15s cache to avoid spamming reads
+  try{
+    const [salesDoc, drugsDoc] = await Promise.all([
+      db.collection("apoteks").doc(apotekId).collection("meta").doc("sales").get(),
+      db.collection("apoteks").doc(apotekId).collection("meta").doc("drugs").get(),
+    ]);
+    const sales = salesDoc.exists ? (salesDoc.data().items||[]) : [];
+    const drugs = drugsDoc.exists ? (drugsDoc.data().items||[]) : JSON.parse(JSON.stringify(SEED_DRUGS));
+    const result = {sales,drugs,ts:Date.now()};
+    saDataCache[apotekId]=result;
+    return result;
+  }catch(e){
+    console.error(e);
+    return {sales:[],drugs:[],ts:Date.now()};
+  }
+}
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+function todayStr(){return new Date().toISOString().split("T")[0];}
+function fmt(n){return new Intl.NumberFormat("id-ID").format(n);}
+function fmtCur(n){return"Rp "+fmt(n);}
+function dayDiff(d){return Math.ceil((new Date(d)-new Date(todayStr()))/86400000);}
+function badge(t,c){return`<span class="badge ${c}">${t}</span>`;}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function closeModal(){document.getElementById("modal-area").innerHTML="";}
+function unitBadge(u){
+  const map={Tablet:"unit-tablet",Kapsul:"unit-kapsul",Strip:"unit-strip",Dus:"unit-dus",Botol:"unit-botol"};
+  return`<span class="badge ${map[u]||"unit-lainnya"}">${u}</span>`;
+}
+function showToast(msg,type="ok"){
+  const el=document.createElement("div");
+  el.className=`toast-item toast-${type}`;
+  el.textContent=(type==="ok"?"✓ ":type==="err"?"✕ ":"ℹ ")+msg;
+  document.getElementById("toast").appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+function togglePw(){
+  const inp=document.getElementById("login-pass");
+  const eye=document.getElementById("pw-eye");
+  if(inp.type==="password"){inp.type="text";eye.textContent="🙈";}
+  else{inp.type="password";eye.textContent="👁";}
+}
+
+// ══════════════════════════════════════════════
+// LOGIN / LOGOUT
+// ══════════════════════════════════════════════
+async function doLogin(){
+  const user=document.getElementById("login-user").value.trim();
+  const pass=document.getElementById("login-pass").value;
+  const err=document.getElementById("login-err");
+  const btn=document.querySelector("#login-screen .btn-primary");
+  if(!user||!pass){err.textContent="Masukkan username dan kata sandi!";err.style.display="block";return;}
+
+  btn.textContent="Memeriksa...";btn.disabled=true;
+
+  try{
+    // Check superadmin
+    if(user===SUPERADMIN.username && pass===SUPERADMIN.password){
+      session={type:"superadmin"};
+      sessionStorage.setItem("rara_session",JSON.stringify(session));
+      err.style.display="none";
+      await launchApp();return;
+    }
+
+    // Ensure apoteks loaded from Firestore
+    if(cache.apoteks===null){
+      await ensureDefaultApotek();
+      await new Promise(resolve=>{
+        listenApoteks(()=>resolve());
+      });
+    }
+
+    const apoteks=getApoteks();
+    const apotek=apoteks.find(a=>a.active && a.username===user && a.password===pass);
+    if(apotek){
+      session={type:"apotek",apotek};
+      sessionStorage.setItem("rara_session",JSON.stringify(session));
+      addLog(apotek.id, apotek.name, user);
+      err.style.display="none";
+      await launchApp();return;
+    }
+
+    err.textContent="Username atau kata sandi salah!";
+    err.style.display="block";
+  }catch(e){
+    console.error(e);
+    err.textContent="Gagal terhubung ke server. Periksa koneksi internet.";
+    err.style.display="block";
+  }finally{
+    btn.textContent="Masuk →";btn.disabled=false;
+  }
+}
+
+function doLogout(){
+  sessionStorage.removeItem("rara_session");
+  clearListeners();
+  session=null;cart=[];
+  document.getElementById("app").style.display="none";
+  document.getElementById("login-screen").style.display="flex";
+  document.getElementById("login-user").value="";
+  document.getElementById("login-pass").value="";
+}
+
+async function restoreSession(){
+  try{
+    const s=JSON.parse(sessionStorage.getItem("rara_session")||"null");
+    if(!s)return false;
+    if(s.type==="superadmin"){session=s;return true;}
+    if(s.type==="apotek"){
+      await ensureDefaultApotek();
+      await new Promise(resolve=>{listenApoteks(()=>resolve());});
+      const apoteks=getApoteks();
+      const ap=apoteks.find(a=>a.id===s.apotek.id);
+      if(!ap||!ap.active)return false;
+      session={type:"apotek",apotek:ap};return true;
+    }
+  }catch(e){console.error(e);}
+  return false;
+}
+
+async function launchApp(){
+  document.getElementById("login-screen").style.display="none";
+  document.getElementById("app").style.display="flex";
+  document.getElementById("sidebar-date").textContent=new Date().toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+
+  if(session.type==="superadmin"){
+    document.getElementById("topbar-badge").className="topbar-badge badge-superadmin";
+    document.getElementById("topbar-badge").textContent="Super Admin";
+    document.getElementById("topbar-user").textContent="superadmin";
+    await ensureDefaultApotek();
+    if(cache.apoteks===null){
+      await new Promise(resolve=>{listenApoteks(()=>resolve());});
+    }
+    listenLogs(()=>{ if(document.getElementById("page-sa-logs").classList.contains("active")) renderLogs(); });
+    buildSuperAdminNav();
+    showPage("sa-dashboard", document.querySelector(".nav-item"));
+  } else {
+    document.getElementById("topbar-badge").className="topbar-badge badge-apotek";
+    document.getElementById("topbar-badge").textContent=session.apotek.name;
+    document.getElementById("topbar-user").textContent=session.apotek.username+" (Admin)";
+    await new Promise(resolve=>{
+      let count=0;
+      listenApotekData(()=>{ count++; if(count>=3) resolve(); refreshCurrentPage(); });
+    });
+    buildApotekNav();
+    showPage("dashboard", document.querySelector(".nav-item"));
+  }
+}
+
+function refreshCurrentPage(){
+  const active=document.querySelector(".page.active");
+  if(!active) return;
+  const id=active.id.replace("page-","");
+  buildApotekNav();
+  if(id==="dashboard")renderDashboard();
+  if(id==="cashier"){renderDrugGrid();renderCart();}
+  if(id==="drugs")renderDrugsTable();
+  if(id==="expired")renderExpired();
+  if(id==="sales")renderSalesTable();
+  if(id==="customers")renderCustTable();
+  if(id==="reports")renderReports();
+}
+
+// ══════════════════════════════════════════════
+// NAV BUILDERS
+// ══════════════════════════════════════════════
+function buildSuperAdminNav(){
+  document.getElementById("sidebar-nav").innerHTML=`
+    <div class="nav-label">Super Admin</div>
+    <button class="nav-item active" onclick="showPage('sa-dashboard',this)">📊 &nbsp;Dashboard</button>
+    <button class="nav-item" onclick="showPage('sa-apoteks',this)">🏪 &nbsp;Manajemen Apotek</button>
+    <button class="nav-item" onclick="showPage('sa-monitor',this)">👁 &nbsp;Monitor Apotek</button>
+    <button class="nav-item" onclick="showPage('sa-logs',this)">📋 &nbsp;Log Aktivitas</button>`;
+}
+
+function buildApotekNav(){
+  const drugs=getDrugs();
+  const exp=drugs.filter(d=>dayDiff(d.expiry)<=0).length;
+  const near=drugs.filter(d=>dayDiff(d.expiry)>0&&dayDiff(d.expiry)<=90).length;
+  const low=drugs.filter(d=>d.stock<=d.minStock).length;
+  document.getElementById("sidebar-nav").innerHTML=`
+    <div class="nav-label">Menu</div>
+    <button class="nav-item" onclick="showPage('dashboard',this)">🏠 &nbsp;Dashboard</button>
+    <button class="nav-item" onclick="showPage('cashier',this)">🛒 &nbsp;Kasir / POS</button>
+    <button class="nav-item" onclick="showPage('drugs',this)">💊 &nbsp;Data Obat${low>0?` <span class="nav-badge warn">${low}</span>`:""}</button>
+    <button class="nav-item" onclick="showPage('expired',this)">⚠️ &nbsp;Expired${exp+near>0?` <span class="nav-badge">${exp+near}</span>`:""}</button>
+    <button class="nav-item" onclick="showPage('sales',this)">🧾 &nbsp;Riwayat Penjualan</button>
+    <button class="nav-item" onclick="showPage('customers',this)">👥 &nbsp;Pelanggan</button>
+    <button class="nav-item" onclick="showPage('reports',this)">📊 &nbsp;Laporan</button>`;
+}
+
+function showPage(id,btn){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
+  document.getElementById("page-"+id).classList.add("active");
+  if(btn)btn.classList.add("active");
+  if(id==="sa-dashboard")renderSADashboard();
+  if(id==="sa-apoteks")renderApotekCards();
+  if(id==="sa-monitor")renderMonitor();
+  if(id==="sa-logs")renderLogs();
+  if(id==="dashboard"){buildApotekNav();renderDashboard();}
+  if(id==="cashier"){renderDrugGrid();renderCart();}
+  if(id==="drugs")renderDrugsTable();
+  if(id==="expired")renderExpired();
+  if(id==="sales")renderSalesTable();
+  if(id==="customers")renderCustTable();
+  if(id==="reports")renderReports();
+}
+
+// ══════════════════════════════════════════════
+// SUPERADMIN — DASHBOARD
+// ══════════════════════════════════════════════
+async function renderSADashboard(){
+  const apoteks=getApoteks();
+  const active=apoteks.filter(a=>a.active).length;
+  const inactive=apoteks.filter(a=>!a.active).length;
+  const logs=getLogs();
+  const todayLogs=logs.filter(l=>l.date===todayStr());
+
+  document.getElementById("page-sa-dashboard").innerHTML=`
+  <div class="page-header"><div class="page-title">Dashboard Super Admin</div></div>
+  <div class="stat-grid" id="sa-stat-grid">
+    <div class="stat-card" style="--c:#7c3aed"><div class="stat-label">Total Apotek</div><div class="stat-val">${apoteks.length}</div><div class="stat-sub">${active} aktif · ${inactive} nonaktif</div></div>
+    <div class="stat-card" style="--c:#1557e8"><div class="stat-label">Pendapatan Hari Ini</div><div class="stat-val" id="sa-rev">…</div><div class="stat-sub" id="sa-trx">memuat...</div></div>
+    <div class="stat-card" style="--c:#dc2626"><div class="stat-label">Peringatan Expired</div><div class="stat-val" id="sa-exp">…</div><div class="stat-sub">Seluruh apotek</div></div>
+    <div class="stat-card" style="--c:#059669"><div class="stat-label">Login Hari Ini</div><div class="stat-val">${todayLogs.length}</div><div class="stat-sub">Aktivitas login</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div style="font-weight:800;font-size:14px;margin-bottom:14px">🏪 Status Apotek</div>
+      <div id="sa-status-list">${apoteks.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9">
+          <div><div style="font-weight:700;font-size:13.5px">${esc(a.icon)} ${esc(a.name)}</div>
+          <div style="font-size:12px;color:var(--muted)" id="sa-status-${a.id}">memuat...</div></div>
+          ${badge(a.active?"Aktif":"Nonaktif",a.active?"bg-green":"bg-gray")}
+        </div>`).join("")}</div>
+    </div>
+    <div class="card">
+      <div style="font-weight:800;font-size:14px;margin-bottom:14px">📋 Login Terakhir</div>
+      ${logs.slice(0,8).map(l=>`
+        <div class="log-item">
+          <div><div style="font-weight:600">${esc(l.apotekName)}</div>
+          <div style="font-size:12px;color:var(--muted)">${esc(l.username)} · ${esc(l.time)}</div></div>
+        </div>`).join("") || `<div style="color:var(--muted);font-size:13px">Belum ada log</div>`}
+    </div>
+  </div>`;
+
+  // Async fetch per-apotek summaries, then fill in
+  let totalRev=0,totalTrx=0,totalExpired=0;
+  await Promise.all(apoteks.map(async(a)=>{
+    const {sales,drugs}=await fetchApotekSummary(a.id);
+    const today=sales.filter(s=>s.date===todayStr());
+    const rev=today.reduce((x,s)=>x+s.total,0), trx=today.length;
+    totalRev+=rev;totalTrx+=trx;
+    totalExpired+=drugs.filter(d=>dayDiff(d.expiry)<=0||dayDiff(d.expiry)<=90).length;
+    const statusEl=document.getElementById(`sa-status-${a.id}`);
+    if(statusEl) statusEl.textContent=`${trx} transaksi hari ini · ${fmtCur(rev)}`;
+  }));
+  const revEl=document.getElementById("sa-rev"); if(revEl) revEl.textContent=fmtCur(totalRev);
+  const trxEl=document.getElementById("sa-trx"); if(trxEl) trxEl.textContent=totalTrx+" transaksi";
+  const expEl=document.getElementById("sa-exp"); if(expEl) expEl.textContent=totalExpired;
+}
+
+// ══════════════════════════════════════════════
+// SUPERADMIN — MANAJEMEN APOTEK
+// ══════════════════════════════════════════════
+async function renderApotekCards(){
+  const apoteks=getApoteks();
+  document.getElementById("apotek-cards").innerHTML=apoteks.map(a=>`<div class="apotek-card">
+      <div class="apotek-card-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="apotek-icon" style="background:${a.active?"var(--primary-light)":"#f1f5f9"}">${a.icon}</div>
+          <div>
+            <div style="font-weight:800;font-size:15px">${esc(a.name)}</div>
+            <div style="font-size:12px;color:var(--muted)">${esc(a.address)}</div>
+          </div>
+        </div>
+        ${badge(a.active?"Aktif":"Nonaktif",a.active?"bg-green":"bg-gray")}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px" id="ac-stats-${a.id}">
+        <div style="background:#f8fafc;border-radius:9px;padding:10px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);font-weight:600">TOTAL TRX</div>
+          <div style="font-weight:800;color:var(--primary)">…</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:9px;padding:10px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);font-weight:600">OMZET</div>
+          <div style="font-weight:800;color:var(--success);font-size:12px">…</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:9px;padding:10px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);font-weight:600">EXPIRED</div>
+          <div style="font-weight:800">…</div>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">KREDENSIAL LOGIN</div>
+        <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
+          <span style="font-size:12px;min-width:70px;font-weight:600">Username:</span>
+          <span class="pw-text">${esc(a.username)}</span>
+        </div>
+        <div class="pw-field">
+          <span style="font-size:12px;min-width:70px;font-weight:600">Password:</span>
+          <span class="pw-text" id="pw-${a.id}">••••••••</span>
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="toggleShowPw('${a.id}','${esc(a.password)}')">👁</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="openApotekModal('${a.id}')">✏️ Edit</button>
+        <button class="btn btn-warning" style="font-size:12px" onclick="resetPassword('${a.id}')">🔑 Reset PW</button>
+        <button class="btn ${a.active?"btn-ghost":"btn-primary"}" style="font-size:12px" onclick="toggleApotekStatus('${a.id}')">${a.active?"⏸ Nonaktifkan":"▶ Aktifkan"}</button>
+        <button class="btn btn-danger" style="font-size:12px" onclick="deleteApotek('${a.id}')">🗑 Hapus</button>
+      </div>
+    </div>`).join("");
+
+  // Fill in stats async
+  apoteks.forEach(async(a)=>{
+    const {sales,drugs}=await fetchApotekSummary(a.id);
+    const totalSales=sales.reduce((x,y)=>x+y.total,0), totalTrx=sales.length;
+    const expiredCount=drugs.filter(x=>dayDiff(x.expiry)<=0).length;
+    const el=document.getElementById(`ac-stats-${a.id}`);
+    if(!el) return;
+    el.innerHTML=`
+      <div style="background:#f8fafc;border-radius:9px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);font-weight:600">TOTAL TRX</div>
+        <div style="font-weight:800;color:var(--primary)">${totalTrx}</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:9px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);font-weight:600">OMZET</div>
+        <div style="font-weight:800;color:var(--success);font-size:12px">${fmtCur(totalSales)}</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:9px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);font-weight:600">EXPIRED</div>
+        <div style="font-weight:800;color:${expiredCount>0?"var(--danger)":"var(--success)"}">${expiredCount}</div>
+      </div>`;
+  });
+}
+
+function toggleShowPw(id,pw){
+  const el=document.getElementById("pw-"+id);
+  el.textContent=el.textContent==="••••••••"?pw:"••••••••";
+}
+
+function openApotekModal(id){
+  const apoteks=getApoteks();
+  const a=id?apoteks.find(x=>x.id===id):{id:"",name:"",address:"",icon:"💊",username:"",password:"",active:true,createdAt:todayStr()};
+  const icons=["💊","🏥","💉","🩺","🧪","🏪","⚕️"];
+  document.getElementById("modal-area").innerHTML=`
+  <div class="modal-bg" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-title">${id?"Edit Apotek":"Tambah Apotek Baru"}</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Nama Apotek *</label>
+          <input class="inp" id="a-name" value="${esc(a.name)}" placeholder="Nama apotek"/>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Alamat</label>
+          <input class="inp" id="a-addr" value="${esc(a.address)}" placeholder="Alamat apotek"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username Login *</label>
+          <input class="inp" id="a-user" value="${esc(a.username)}" placeholder="Cth: apotek_sehat"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password *</label>
+          <input class="inp" id="a-pass" value="${esc(a.password)}" placeholder="Min. 6 karakter"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ID Unik *</label>
+          <input class="inp" id="a-id" value="${esc(a.id)}" placeholder="Cth: apotek_sehat" ${id?"readonly style='background:#f8fafc'":""}/>
+          ${!id?`<div style="font-size:11.5px;color:var(--muted);margin-top:4px">Huruf kecil, angka, underscore saja. Tidak bisa diubah.</div>`:""}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Icon</label>
+          <select class="inp" id="a-icon">${icons.map(i=>`<option${a.icon===i?" selected":""}>${i}</option>`).join("")}</select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="btn btn-purple" onclick="saveApotek('${id||""}')">Simpan</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Batal</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function saveApotek(id){
+  const name=document.getElementById("a-name").value.trim();
+  const aId=document.getElementById("a-id").value.trim().replace(/\s+/g,"_");
+  const user=document.getElementById("a-user").value.trim();
+  const pass=document.getElementById("a-pass").value;
+  if(!name||!aId||!user||!pass){showToast("Lengkapi semua field wajib","err");return;}
+  if(pass.length<6){showToast("Password minimal 6 karakter","err");return;}
+  const apoteks=getApoteks();
+  if(!id && apoteks.find(a=>a.id===aId)){showToast("ID sudah digunakan apotek lain","err");return;}
+  if(!id && apoteks.find(a=>a.username===user)){showToast("Username sudah digunakan","err");return;}
+  const obj={
+    id:id||aId, name,
+    address:document.getElementById("a-addr").value,
+    icon:document.getElementById("a-icon").value,
+    username:user, password:pass,
+    active:id?(apoteks.find(a=>a.id===id)||{}).active!==false:true,
+    createdAt:id?(apoteks.find(a=>a.id===id)||{}).createdAt||todayStr():todayStr()
+  };
+  closeModal();
+  showToast(id?"Menyimpan perubahan...":"Menambahkan apotek...", "ok");
+  try{
+    await saveApoteksSingle(obj);
+    showToast(id?"Data apotek diperbarui":"Apotek baru ditambahkan!");
+  }catch(e){console.error(e);showToast("Gagal menyimpan — periksa koneksi","err");}
+}
+
+async function resetPassword(id){
+  const newPw=prompt("Masukkan password baru (min. 6 karakter):");
+  if(!newPw)return;
+  if(newPw.length<6){showToast("Password minimal 6 karakter","err");return;}
+  const apoteks=getApoteks();
+  const a=apoteks.find(x=>x.id===id);
+  const updated={...a,password:newPw};
+  try{
+    await saveApoteksSingle(updated);
+    showToast("Password berhasil direset!");
+  }catch(e){console.error(e);showToast("Gagal reset password","err");}
+}
+
+async function toggleApotekStatus(id){
+  const apoteks=getApoteks();
+  const a=apoteks.find(x=>x.id===id);
+  const updated={...a,active:!a.active};
+  try{
+    await saveApoteksSingle(updated);
+    showToast(updated.active?"Apotek diaktifkan":"Apotek dinonaktifkan");
+  }catch(e){console.error(e);showToast("Gagal mengubah status","err");}
+}
+
+async function deleteApotek(id){
+  const apoteks=getApoteks();
+  const a=apoteks.find(x=>x.id===id);
+  if(!confirm(`Hapus ${a.name}? Data penjualan & obat apotek ini akan hilang!`))return;
+  showToast("Menghapus apotek...","ok");
+  try{
+    await deleteApotekDoc(id);
+    showToast("Apotek dihapus");
+  }catch(e){console.error(e);showToast("Gagal menghapus apotek","err");}
+}
+
+// ══════════════════════════════════════════════
+// SUPERADMIN — MONITOR
+// ══════════════════════════════════════════════
+async function renderMonitor(){
+  const period=(document.getElementById("monitor-period")||{}).value||"today";
+  const apoteks=getApoteks();
+  const now=new Date();
+
+  document.getElementById("monitor-content").innerHTML=`<div style="text-align:center;padding:40px;color:var(--muted)">Memuat data seluruh apotek...</div>`;
+
+  let grandRev=0,grandTrx=0;
+  const data=await Promise.all(apoteks.map(async(a)=>{
+    const {sales,drugs}=await fetchApotekSummary(a.id);
+    let filtered=sales;
+    if(period==="today")filtered=sales.filter(s=>s.date===todayStr());
+    else if(period==="week"){const w=new Date();w.setDate(w.getDate()-7);filtered=sales.filter(s=>new Date(s.date)>=w);}
+    else if(period==="month")filtered=sales.filter(s=>s.date.startsWith(now.toISOString().slice(0,7)));
+    const rev=filtered.reduce((x,s)=>x+s.total,0);
+    grandRev+=rev;grandTrx+=filtered.length;
+    const expired=drugs.filter(d=>dayDiff(d.expiry)<=0).length;
+    const lowStock=drugs.filter(d=>d.stock<=d.minStock).length;
+    return{...a,rev,trx:filtered.length,expired,lowStock};
+  }));
+
+  document.getElementById("monitor-content").innerHTML=`
+  <div class="stat-grid-3" style="margin-bottom:20px">
+    <div class="stat-card" style="--c:#7c3aed"><div class="stat-label">Total Apotek Aktif</div><div class="stat-val">${apoteks.filter(a=>a.active).length}</div></div>
+    <div class="stat-card" style="--c:#1557e8"><div class="stat-label">Total Penjualan</div><div class="stat-val">${fmtCur(grandRev)}</div><div class="stat-sub">${grandTrx} transaksi</div></div>
+    <div class="stat-card" style="--c:#dc2626"><div class="stat-label">Total Obat Expired</div><div class="stat-val">${data.reduce((x,a)=>x+a.expired,0)}</div><div class="stat-sub">Seluruh apotek</div></div>
+  </div>
+  <div class="tbl-wrap"><table><thead><tr>
+    <th>Apotek</th><th>Status</th><th>Transaksi</th><th>Penjualan</th><th>Obat Expired</th><th>Stok Menipis</th>
+  </tr></thead><tbody>
+  ${data.map(a=>`<tr>
+    <td><div style="font-weight:700">${esc(a.icon)} ${esc(a.name)}</div><div style="font-size:12px;color:var(--muted)">${esc(a.address)}</div></td>
+    <td>${badge(a.active?"Aktif":"Nonaktif",a.active?"bg-green":"bg-gray")}</td>
+    <td style="font-weight:700">${a.trx}x</td>
+    <td style="font-weight:800;color:var(--primary)">${fmtCur(a.rev)}</td>
+    <td>${a.expired>0?badge(a.expired+" obat","bg-red"):badge("Aman","bg-green")}</td>
+    <td>${a.lowStock>0?badge(a.lowStock+" item","bg-yellow"):badge("Aman","bg-green")}</td>
+  </tr>`).join("")}
+  </tbody></table></div>`;
+}
+
+// ══════════════════════════════════════════════
+// SUPERADMIN — LOGS
+// ══════════════════════════════════════════════
+function renderLogs(){
+  const logs=getLogs();
+  document.getElementById("log-content").innerHTML=`
+    <div style="font-weight:800;font-size:14px;margin-bottom:16px">📋 Riwayat Login (${logs.length} aktivitas)</div>`+
+    (logs.length===0?`<div style="color:var(--muted);font-size:13px">Belum ada log aktivitas</div>`:
+    logs.map(l=>`<div class="log-item">
+      <div>
+        <div style="font-weight:700">${esc(l.apotekName)}</div>
+        <div style="font-size:12px;color:var(--muted)">Username: ${esc(l.username)} · ${esc(l.time)}</div>
+      </div>
+      ${badge(l.date===todayStr()?"Hari ini":"","bg-blue")}
+    </div>`).join(""));
+}
+
+// ══════════════════════════════════════════════
+// APOTEK — DASHBOARD
+// ══════════════════════════════════════════════
+function renderDashboard(){
+  const drugs=getDrugs(),sales=getSales();
+  const todaySales=sales.filter(s=>s.date===todayStr());
+  const todayRev=todaySales.reduce((a,s)=>a+s.total,0);
+  const ms=new Date().toISOString().slice(0,7);
+  const monthSales=sales.filter(s=>s.date.startsWith(ms));
+  const monthRev=monthSales.reduce((a,s)=>a+s.total,0);
+  const expD=drugs.filter(d=>dayDiff(d.expiry)<=0);
+  const nearD=drugs.filter(d=>dayDiff(d.expiry)>0&&dayDiff(d.expiry)<=90);
+  const lowD=drugs.filter(d=>d.stock<=d.minStock);
+  document.getElementById("page-dashboard").innerHTML=`
+  <div class="page-header"><div class="page-title">Dashboard — ${esc(session.apotek.name)}</div></div>
+  <div class="stat-grid">
+    <div class="stat-card" style="--c:#1557e8"><div class="stat-label">Pendapatan Hari Ini</div><div class="stat-val">${fmtCur(todayRev)}</div><div class="stat-sub">${todaySales.length} transaksi</div></div>
+    <div class="stat-card" style="--c:#7c3aed"><div class="stat-label">Pendapatan Bulan Ini</div><div class="stat-val">${fmtCur(monthRev)}</div><div class="stat-sub">${monthSales.length} transaksi</div></div>
+    <div class="stat-card" style="--c:#059669"><div class="stat-label">Total Jenis Obat</div><div class="stat-val">${drugs.length}</div><div class="stat-sub">${lowD.length} stok menipis</div></div>
+    <div class="stat-card" style="--c:#dc2626"><div class="stat-label">Peringatan Expired</div><div class="stat-val">${expD.length+nearD.length}</div><div class="stat-sub">${expD.length} sudah expired</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div style="font-weight:800;font-size:14px;margin-bottom:14px">⚠️ Stok Menipis</div>
+      ${lowD.length===0?`<div style="color:var(--muted);font-size:13px">Semua stok aman ✓</div>`:
+      lowD.map(d=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13.5px"><span style="font-weight:600">${esc(d.name)}</span>${badge(d.stock+" "+d.unitJual,"bg-red")}</div>`).join("")}
+    </div>
+    <div class="card">
+      <div style="font-weight:800;font-size:14px;margin-bottom:14px">📅 Mendekati Expired</div>
+      ${[...expD,...nearD].length===0?`<div style="color:var(--muted);font-size:13px">Tidak ada ✓</div>`:
+      [...expD,...nearD].slice(0,6).map(d=>{const diff=dayDiff(d.expiry);return`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13.5px"><span style="font-weight:600">${esc(d.name)}</span>${badge(diff<=0?"EXPIRED":diff+"h lagi",diff<=0?"bg-red":diff<=30?"bg-yellow":"bg-blue")}</div>`;}).join("")}
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <div style="font-weight:800;font-size:14px;margin-bottom:14px">🧾 Transaksi Hari Ini</div>
+      ${todaySales.length===0?`<div style="color:var(--muted);font-size:13px">Belum ada transaksi hari ini</div>`:`
+      <table><thead><tr><th>#</th><th>Pelanggan</th><th>Item</th><th>Total</th><th>Resep</th></tr></thead><tbody>
+      ${todaySales.map(s=>`<tr><td style="font-family:'JetBrains Mono',monospace;font-size:12px">TRX-${String(s.id).padStart(4,"0")}</td><td>${esc(s.customer)}</td><td style="font-size:12px;color:var(--muted)">${s.items.map(i=>i.name+" x"+i.qty).join(", ")}</td><td style="font-weight:800;color:var(--primary)">${fmtCur(s.total)}</td><td>${s.resep?badge(s.resep,"bg-blue"):badge("Bebas","bg-gray")}</td></tr>`).join("")}
+      </tbody></table>`}
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════
+// APOTEK — CASHIER
+// ══════════════════════════════════════════════
+function renderDrugGrid(){
+  const q=(document.getElementById("drug-search")||{}).value||"";
+  const drugs=getDrugs().filter(d=>d.stock>0&&d.name.toLowerCase().includes(q.toLowerCase()));
+  document.getElementById("drug-grid").innerHTML=drugs.length===0?`<div style="color:var(--muted);font-size:13px;padding:20px">Tidak ada obat</div>`:
+    drugs.map(d=>`<div class="drug-card" onclick="addToCart(${d.id})">
+      <div style="font-weight:700;font-size:13.5px;line-height:1.3;margin-bottom:6px">${esc(d.name)}</div>
+      <div style="font-weight:800;font-size:15px;color:var(--primary)">${fmtCur(d.price)} <span style="font-size:11px;font-weight:500;color:var(--muted)">/ ${esc(d.unitJual)}</span></div>
+      <div style="font-size:11.5px;margin-top:3px;color:${d.stock<=d.minStock?"var(--danger)":"var(--muted)"}">Stok: ${d.stock} ${esc(d.unitJual)}</div>
+      <div style="font-size:10.5px;color:var(--muted);margin-top:2px">Batch: ${esc(d.batch)}</div>
+    </div>`).join("");
+  const dl=document.getElementById("cust-datalist");
+  if(dl)dl.innerHTML=getCustomers().map(c=>`<option value="${esc(c.name)}"/>`).join("");
+}
+function addToCart(id){
+  const d=getDrugs().find(x=>x.id===id);
+  if(!d||d.stock<=0)return;
+  const ex=cart.find(c=>c.drugId===id);
+  if(ex){if(ex.qty>=d.stock){showToast("Stok tidak mencukupi","err");return;}ex.qty++;}
+  else cart.push({drugId:id,name:d.name,price:d.price,unitJual:d.unitJual,batch:d.batch,qty:1});
+  renderCart();
+}
+function updateQty(id,q){
+  const idx=cart.findIndex(c=>c.drugId===id);if(idx===-1)return;
+  if(q<=0)cart.splice(idx,1);
+  else{const d=getDrugs().find(x=>x.id===id);if(d&&q>d.stock){showToast("Stok tidak mencukupi","err");return;}cart[idx].qty=q;}
+  renderCart();
+}
+function renderCart(){
+  const el=document.getElementById("cart-items");if(!el)return;
+  if(cart.length===0){
+    el.innerHTML=`<div style="text-align:center;color:var(--muted);padding:30px 0;font-size:13px">Pilih obat dari daftar</div>`;
+    document.getElementById("cart-summary").innerHTML="";return;
+  }
+  el.innerHTML=cart.map(c=>`<div class="cart-item">
+    <div style="font-weight:700;font-size:13px;margin-bottom:3px">${esc(c.name)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:5px">Batch: ${esc(c.batch)} · ${unitBadge(c.unitJual)}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="qty-btn" onclick="updateQty(${c.drugId},${c.qty-1})">−</button>
+        <span style="font-weight:800;min-width:22px;text-align:center">${c.qty}</span>
+        <button class="qty-btn" onclick="updateQty(${c.drugId},${c.qty+1})">+</button>
+      </div>
+      <span style="font-weight:800;color:var(--primary)">${fmtCur(c.price*c.qty)}</span>
+    </div>
+  </div>`).join("");
+  const sub=cart.reduce((a,c)=>a+c.price*c.qty,0);
+  document.getElementById("cart-summary").innerHTML=`
+    <div style="border-top:1.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
+      <div class="total-line"><span>Subtotal</span><span>${fmtCur(sub)}</span></div>
+      <div class="total-line"><label style="font-size:12px;font-weight:700;color:var(--muted)">Diskon (%)</label>
+        <input type="number" class="inp" id="cart-discount" value="0" min="0" max="100" style="width:70px;text-align:right;padding:5px 8px" oninput="recalcTotal(${sub})"/></div>
+      <div class="total-line" id="disc-line" style="color:var(--danger);display:none"><span>Potongan</span><span id="disc-val"></span></div>
+      <div class="total-line big" id="total-line"><span>Total</span><span style="color:var(--primary)">${fmtCur(sub)}</span></div>
+      <div class="total-line"><label style="font-size:12px;font-weight:700;color:var(--muted)">Bayar (Rp)</label>
+        <input type="number" class="inp" id="cart-paid" placeholder="0" style="width:140px;text-align:right" oninput="recalcChange()"/></div>
+      <div class="total-line" id="change-line" style="color:var(--success);font-weight:800;display:none"><span>Kembalian</span><span id="change-val"></span></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:14px;margin-top:4px" onclick="checkout()">✓ Proses Transaksi</button>
+    </div>`;
+}
+function getCartTotal(){
+  const sub=cart.reduce((a,c)=>a+c.price*c.qty,0);
+  const disc=parseFloat((document.getElementById("cart-discount")||{}).value)||0;
+  return sub-Math.round(sub*disc/100);
+}
+function recalcTotal(sub){
+  const disc=parseFloat(document.getElementById("cart-discount").value)||0;
+  const discAmt=Math.round(sub*disc/100);
+  document.getElementById("disc-line").style.display=disc>0?"flex":"none";
+  document.getElementById("disc-val").textContent="−"+fmtCur(discAmt);
+  document.getElementById("total-line").innerHTML=`<span>Total</span><span style="color:var(--primary)">${fmtCur(sub-discAmt)}</span>`;
+  recalcChange();
+}
+function recalcChange(){
+  const total=getCartTotal(),paid=parseFloat((document.getElementById("cart-paid")||{}).value)||0;
+  const cl=document.getElementById("change-line");
+  if(paid>=total){cl.style.display="flex";document.getElementById("change-val").textContent=fmtCur(paid-total);}
+  else cl.style.display="none";
+}
+async function checkout(){
+  if(cart.length===0){showToast("Keranjang kosong","err");return;}
+  const total=getCartTotal(),paid=parseFloat((document.getElementById("cart-paid")||{}).value)||0;
+  if(paid<total){showToast("Pembayaran kurang","err");return;}
+  const customer=(document.getElementById("cart-customer")||{}).value||"Umum";
+  const resep=(document.getElementById("cart-resep")||{}).value||"";
+  const btn=document.querySelector("#cart-summary .btn-primary");
+  if(btn){btn.textContent="Memproses...";btn.disabled=true;}
+  try{
+    const id=await bumpId();
+    const sale={id,date:todayStr(),customer,items:cart.map(c=>({...c})),total,paid,change:paid-total,resep};
+    const drugs=getDrugs();
+    cart.forEach(it=>{const d=drugs.find(x=>x.id===it.drugId);if(d)d.stock-=it.qty;});
+    await saveDrugs(drugs);
+    const sales=getSales();sales.push(sale);await saveSales(sales);
+    cart=[];
+    if(document.getElementById("cart-paid"))document.getElementById("cart-paid").value="";
+    if(document.getElementById("cart-resep"))document.getElementById("cart-resep").value="";
+    renderCart();renderDrugGrid();buildApotekNav();
+    showToast("Transaksi berhasil!");showReceipt(sale);
+  }catch(e){
+    console.error(e);
+    showToast("Gagal menyimpan transaksi — periksa koneksi","err");
+    if(btn){btn.textContent="✓ Proses Transaksi";btn.disabled=false;}
+  }
+}
+function showReceipt(sale){
+  document.getElementById("modal-area").innerHTML=`
+  <div class="modal-bg" onclick="closeModal()">
+    <div class="modal" style="max-width:340px" onclick="event.stopPropagation()">
+      <div class="receipt">
+        <div style="text-align:center;margin-bottom:10px">
+          <div style="font-weight:800;font-size:17px">${esc(session.apotek.icon)} ${esc(session.apotek.name)}</div>
+          <div style="color:var(--muted);font-size:12px">${esc(session.apotek.address)}</div>
+          <div style="font-size:12px;margin-top:6px">TRX-${String(sale.id).padStart(4,"0")} · ${sale.date}</div>
+        </div>
+        <div class="sep"></div>
+        <div style="font-size:12px">Pelanggan: <b>${esc(sale.customer)}</b></div>
+        ${sale.resep?`<div style="font-size:12px">Resep: <b>${esc(sale.resep)}</b></div>`:""}
+        <div class="sep"></div>
+        ${sale.items.map(it=>`<div style="display:flex;justify-content:space-between;padding:2px 0">${esc(it.name)} x${it.qty} ${esc(it.unitJual)}<span>${fmtCur(it.price*it.qty)}</span></div>`).join("")}
+        <div class="sep"></div>
+        <div style="display:flex;justify-content:space-between;font-weight:800;font-size:15px"><span>Total</span><span>${fmtCur(sale.total)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Bayar</span><span>${fmtCur(sale.paid)}</span></div>
+        <div style="display:flex;justify-content:space-between;color:var(--success);font-weight:700"><span>Kembalian</span><span>${fmtCur(sale.change)}</span></div>
+        <div class="sep"></div>
+        <div style="text-align:center;font-size:12px;color:var(--muted)">Terima kasih atas kunjungan Anda!</div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px" onclick="closeModal()">Tutup</button>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════
+// APOTEK — DATA OBAT
+// ══════════════════════════════════════════════
+function renderDrugsTable(){
+  const drugs=getDrugs();
+  const q=(document.getElementById("drug-search2")||{}).value||"";
+  const uf=(document.getElementById("unit-filter")||{}).value||"";
+  const list=drugs.filter(d=>(!uf||d.unitJual===uf)&&(d.name.toLowerCase().includes(q.toLowerCase())||d.batch.toLowerCase().includes(q.toLowerCase())));
+  document.getElementById("drugs-tbody").innerHTML=list.map(d=>{
+    const diff=dayDiff(d.expiry);
+    return`<tr>
+      <td style="font-weight:700">${esc(d.name)}</td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;background:#f1f5f9;padding:2px 8px;border-radius:6px">${esc(d.batch)}</span></td>
+      <td>${unitBadge(d.unitJual)}</td>
+      <td>${badge(d.stock+" "+d.unitJual,d.stock<=d.minStock?"bg-red":"bg-green")}</td>
+      <td style="font-weight:700">${fmtCur(d.price)}</td>
+      <td style="color:var(--muted)">${fmtCur(d.cost)}</td>
+      <td>${badge(d.expiry,diff<=0?"bg-red":diff<=30?"bg-yellow":"bg-green")}</td>
+      <td style="color:var(--muted);font-size:12px">${esc(d.supplier)}</td>
+      <td><div style="display:flex;gap:6px">
+        <button class="btn btn-ghost" onclick="openDrugModal(${d.id})">✏️</button>
+        <button class="btn btn-danger" onclick="deleteDrug(${d.id})">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join("");
+}
+function openDrugModal(id){
+  const drugs=getDrugs();
+  const d=id?drugs.find(x=>x.id===id):{name:"",batch:"",unitJual:"Tablet",unitStrip:10,unitDus:10,price:"",cost:"",stock:"",minStock:10,expiry:"",supplier:""};
+  const satuanOpts=SATUAN_LIST.map(s=>`<option${d.unitJual===s?" selected":""}>${s}</option>`).join("");
+  document.getElementById("modal-area").innerHTML=`
+  <div class="modal-bg" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-title">${id?"Edit Data Obat":"Tambah Obat Baru"}</div>
+      <div class="form-grid">
+        <div class="form-group full"><label class="form-label">Nama Obat *</label><input class="inp" id="f-name" value="${esc(d.name)}"/></div>
+        <div class="form-group"><label class="form-label">No. Batch *</label><input class="inp" id="f-batch" value="${esc(d.batch)}" placeholder="BCH-2024-001"/></div>
+        <div class="form-group"><label class="form-label">Satuan Jual *</label><select class="inp" id="f-unit">${satuanOpts}</select></div>
+        <div class="form-group"><label class="form-label">Isi per Strip</label><input type="number" class="inp" id="f-strip" value="${d.unitStrip||""}"/></div>
+        <div class="form-group"><label class="form-label">Strip per Dus</label><input type="number" class="inp" id="f-dus" value="${d.unitDus||""}"/></div>
+        <div class="form-group"><label class="form-label">Harga Jual *</label><input type="number" class="inp" id="f-price" value="${d.price}"/></div>
+        <div class="form-group"><label class="form-label">Harga Beli</label><input type="number" class="inp" id="f-cost" value="${d.cost}"/></div>
+        <div class="form-group"><label class="form-label">Stok *</label><input type="number" class="inp" id="f-stock" value="${d.stock}"/></div>
+        <div class="form-group"><label class="form-label">Stok Minimum</label><input type="number" class="inp" id="f-min" value="${d.minStock}"/></div>
+        <div class="form-group"><label class="form-label">Tanggal ED *</label><input type="date" class="inp" id="f-expiry" value="${d.expiry}"/></div>
+        <div class="form-group"><label class="form-label">Supplier</label><input class="inp" id="f-supplier" value="${esc(d.supplier)}"/></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="btn btn-primary" onclick="saveDrug(${id||0})">Simpan</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Batal</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function saveDrug(id){
+  const name=document.getElementById("f-name").value.trim();
+  const batch=document.getElementById("f-batch").value.trim();
+  const price=parseFloat(document.getElementById("f-price").value);
+  const stock=parseInt(document.getElementById("f-stock").value);
+  const expiry=document.getElementById("f-expiry").value;
+  if(!name||!batch||!price||isNaN(stock)||!expiry){showToast("Lengkapi field wajib (*)","err");return;}
+  const obj={name,batch,unitJual:document.getElementById("f-unit").value,unitStrip:parseInt(document.getElementById("f-strip").value)||10,unitDus:parseInt(document.getElementById("f-dus").value)||10,price,cost:parseFloat(document.getElementById("f-cost").value)||0,stock,minStock:parseInt(document.getElementById("f-min").value)||10,expiry,supplier:document.getElementById("f-supplier").value};
+  closeModal();
+  try{
+    const drugs=getDrugs();
+    if(id){const idx=drugs.findIndex(d=>d.id===id);drugs[idx]={...drugs[idx],...obj};}
+    else drugs.push({...obj,id:await bumpId()});
+    await saveDrugs(drugs);
+    renderDrugsTable();buildApotekNav();
+    showToast(id?"Data diperbarui":"Obat ditambahkan");
+  }catch(e){console.error(e);showToast("Gagal menyimpan — periksa koneksi","err");}
+}
+async function deleteDrug(id){
+  if(!confirm("Hapus obat ini?"))return;
+  try{
+    await saveDrugs(getDrugs().filter(d=>d.id!==id));
+    renderDrugsTable();buildApotekNav();showToast("Obat dihapus");
+  }catch(e){console.error(e);showToast("Gagal menghapus","err");}
+}
+
+// ══════════════════════════════════════════════
+// APOTEK — EXPIRED
+// ══════════════════════════════════════════════
+function renderExpired(){
+  const drugs=getDrugs();
+  const exp=drugs.filter(d=>dayDiff(d.expiry)<=0);
+  const near=drugs.filter(d=>dayDiff(d.expiry)>0&&dayDiff(d.expiry)<=90);
+  const tbl=(list)=>list.length===0?`<div style="padding:14px 20px;color:var(--muted);font-size:13px">Tidak ada ✓</div>`:`
+    <table><thead><tr><th>Nama Obat</th><th>No. Batch</th><th>Satuan</th><th>Stok</th><th>Tgl ED</th><th>Sisa Hari</th><th>Supplier</th><th></th></tr></thead><tbody>
+    ${list.map(d=>{const diff=dayDiff(d.expiry);return`<tr>
+      <td style="font-weight:700">${esc(d.name)}</td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;background:#f1f5f9;padding:2px 8px;border-radius:6px">${esc(d.batch)}</span></td>
+      <td>${unitBadge(d.unitJual)}</td><td>${d.stock} ${esc(d.unitJual)}</td><td>${d.expiry}</td>
+      <td>${badge(diff<=0?"EXPIRED":diff+" hari lagi",diff<=0?"bg-red":diff<=30?"bg-yellow":"bg-blue")}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(d.supplier)}</td>
+      <td><button class="btn btn-danger" onclick="deleteExpired(${d.id})">Hapus</button></td>
+    </tr>`;}).join("")}</tbody></table>`;
+  const sec=(title,list,color)=>`
+    <div style="margin-bottom:16px;background:#fff;border-radius:var(--radius);border:1.5px solid var(--border);border-top:4px solid ${color};overflow:hidden;box-shadow:var(--shadow)">
+      <div style="padding:16px 20px;font-weight:800;font-size:14px;color:${color}">${title} (${list.length})</div>${tbl(list)}</div>`;
+  document.getElementById("expired-content").innerHTML=sec("🔴 Sudah Expired",exp,"#dc2626")+sec("🟡 Mendekati Expired (≤ 90 hari)",near,"#b45309");
+}
+async function deleteExpired(id){
+  if(!confirm("Hapus obat expired?"))return;
+  try{
+    await saveDrugs(getDrugs().filter(d=>d.id!==id));
+    renderExpired();buildApotekNav();showToast("Obat dihapus");
+  }catch(e){console.error(e);showToast("Gagal menghapus","err");}
+}
+
+// ══════════════════════════════════════════════
+// APOTEK — SALES
+// ══════════════════════════════════════════════
+function renderSalesTable(){
+  const q=(document.getElementById("sales-search")||{}).value||"";
+  const from=(document.getElementById("sales-from")||{}).value||"";
+  const to=(document.getElementById("sales-to")||{}).value||"";
+  const list=[...getSales()].reverse().filter(s=>{
+    const mq=s.customer.toLowerCase().includes(q.toLowerCase())||s.items.some(i=>i.name.toLowerCase().includes(q.toLowerCase()));
+    return mq&&(!from||s.date>=from)&&(!to||s.date<=to);
+  });
+  document.getElementById("sales-tbody").innerHTML=list.map(s=>`<tr>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">TRX-${String(s.id).padStart(4,"0")}</td>
+    <td>${s.date}</td><td>${esc(s.customer)}</td>
+    <td style="font-size:12px;color:var(--muted);max-width:200px">${s.items.map(i=>i.name+" x"+i.qty+" "+i.unitJual).join(", ")}</td>
+    <td style="font-weight:800;color:var(--primary)">${fmtCur(s.total)}</td>
+    <td>${fmtCur(s.paid)}</td>
+    <td style="color:var(--success);font-weight:700">${fmtCur(s.change)}</td>
+    <td>${s.resep?badge(s.resep,"bg-blue"):badge("Bebas","bg-gray")}</td>
+    <td><button class="btn btn-danger" onclick="deleteSale(${s.id})">🗑</button></td>
+  </tr>`).join("");
+}
+async function deleteSale(id){
+  if(!confirm("Hapus transaksi ini?"))return;
+  try{
+    await saveSales(getSales().filter(s=>s.id!==id));
+    renderSalesTable();showToast("Transaksi dihapus");
+  }catch(e){console.error(e);showToast("Gagal menghapus","err");}
+}
+
+// ══════════════════════════════════════════════
+// APOTEK — CUSTOMERS
+// ══════════════════════════════════════════════
+function renderCustTable(){
+  const customers=getCustomers(),sales=getSales();
+  const q=(document.getElementById("cust-search")||{}).value||"";
+  const list=customers.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.phone.includes(q));
+  document.getElementById("cust-tbody").innerHTML=list.map(c=>{
+    const cs=sales.filter(s=>s.customer===c.name);
+    return`<tr><td style="font-weight:700">${esc(c.name)}</td><td>${esc(c.phone)}</td>
+      <td style="color:var(--muted);font-size:12.5px">${esc(c.address)}</td>
+      <td>${badge(cs.length+"x","bg-blue")}</td>
+      <td style="font-weight:800;color:var(--primary)">${fmtCur(cs.reduce((a,s)=>a+s.total,0))}</td>
+      <td><div style="display:flex;gap:6px">
+        <button class="btn btn-ghost" onclick="openCustModal(${c.id})">✏️</button>
+        <button class="btn btn-danger" onclick="deleteCust(${c.id})">🗑</button>
+      </div></td></tr>`;
+  }).join("");
+}
+function openCustModal(id){
+  const c=id?getCustomers().find(x=>x.id===id):{name:"",phone:"",address:""};
+  document.getElementById("modal-area").innerHTML=`
+  <div class="modal-bg" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-title">${id?"Edit Pelanggan":"Tambah Pelanggan"}</div>
+      <div class="form-group"><label class="form-label">Nama *</label><input class="inp" id="c-name" value="${esc(c.name)}"/></div>
+      <div class="form-group"><label class="form-label">Telepon</label><input class="inp" id="c-phone" value="${esc(c.phone)}"/></div>
+      <div class="form-group"><label class="form-label">Alamat</label><input class="inp" id="c-addr" value="${esc(c.address)}"/></div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="btn btn-primary" onclick="saveCust(${id||0})">Simpan</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Batal</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function saveCust(id){
+  const name=document.getElementById("c-name").value.trim();
+  if(!name){showToast("Nama wajib diisi","err");return;}
+  const obj={name,phone:document.getElementById("c-phone").value,address:document.getElementById("c-addr").value};
+  closeModal();
+  try{
+    const customers=getCustomers();
+    if(id){const idx=customers.findIndex(c=>c.id===id);customers[idx]={...customers[idx],...obj};}
+    else customers.push({...obj,id:await bumpId()});
+    await saveCustomers(customers);
+    renderCustTable();showToast(id?"Data diperbarui":"Pelanggan ditambahkan");
+  }catch(e){console.error(e);showToast("Gagal menyimpan","err");}
+}
+async function deleteCust(id){
+  if(!confirm("Hapus pelanggan ini?"))return;
+  try{
+    await saveCustomers(getCustomers().filter(c=>c.id!==id));
+    renderCustTable();showToast("Pelanggan dihapus");
+  }catch(e){console.error(e);showToast("Gagal menghapus","err");}
+}
+
+// ══════════════════════════════════════════════
+// APOTEK — REPORTS
+// ══════════════════════════════════════════════
+function renderReports(){
+  const drugs=getDrugs(),sales=getSales();
+  const period=(document.getElementById("report-period")||{}).value||"today";
+  const now=new Date();
+  let list=sales;
+  if(period==="today")list=sales.filter(s=>s.date===todayStr());
+  else if(period==="week"){const w=new Date();w.setDate(w.getDate()-7);list=sales.filter(s=>new Date(s.date)>=w);}
+  else if(period==="month")list=sales.filter(s=>s.date.startsWith(now.toISOString().slice(0,7)));
+  const rev=list.reduce((a,s)=>a+s.total,0);
+  const cogs=list.reduce((a,s)=>a+s.items.reduce((b,i)=>{const d=drugs.find(x=>x.id===i.drugId);return b+(d?d.cost*i.qty:0);},0),0);
+  document.getElementById("report-stats").innerHTML=[
+    {label:"Total Penjualan",val:fmtCur(rev),c:"#1557e8"},
+    {label:"Total Transaksi",val:list.length+"x",c:"#7c3aed"},
+    {label:"HPP (COGS)",val:fmtCur(cogs),c:"#dc2626"},
+    {label:"Laba Kotor",val:fmtCur(rev-cogs),c:"#15803d"},
+  ].map(s=>`<div class="stat-card" style="--c:${s.c}"><div class="stat-label">${s.label}</div><div class="stat-val">${s.val}</div></div>`).join("");
+  const ds={};list.forEach(s=>s.items.forEach(i=>{ds[i.name]=(ds[i.name]||0)+i.qty;}));
+  const top=Object.entries(ds).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxQ=top[0]?top[0][1]:1;
+  document.getElementById("report-terlaris").innerHTML=`<div style="font-weight:800;font-size:14px;margin-bottom:16px">📊 Obat Terlaris</div>`+
+    (top.length===0?`<div style="color:var(--muted);font-size:13px">Belum ada data</div>`:
+    top.map(([name,qty],i)=>`<div class="prog-wrap"><div class="prog-label"><span style="font-weight:600;font-size:13px">${i+1}. ${esc(name)}</span><span style="font-weight:800;color:var(--primary)">${qty} unit</span></div><div class="prog-bar"><div class="prog-fill" style="width:${Math.round(qty/maxQ*100)}%"></div></div></div>`).join(""));
+  document.getElementById("report-detail").innerHTML=`<div style="font-weight:800;font-size:14px;margin-bottom:14px">🧾 Rincian Transaksi</div>`+
+    (list.length===0?`<div style="color:var(--muted);font-size:13px">Tidak ada data</div>`:`
+    <table><thead><tr><th>Tanggal</th><th>Pelanggan</th><th>Total</th></tr></thead><tbody>
+    ${[...list].reverse().slice(0,10).map(s=>`<tr><td style="font-size:12px">${s.date}</td><td>${esc(s.customer)}</td><td style="font-weight:800;color:var(--primary)">${fmtCur(s.total)}</td></tr>`).join("")}
+    </tbody></table>`);
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+(async function init(){
+  try{
+    const ok = await restoreSession();
+    if(ok) await launchApp();
+  }catch(e){
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
