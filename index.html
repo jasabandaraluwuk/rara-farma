@@ -112,6 +112,7 @@ input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--text)}
 /* MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:#fff;border-radius:18px;padding:26px;width:500px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-lg{width:640px}
 .modal-title{font-size:17px;font-weight:800;margin-bottom:20px}
 
 /* CASHIER */
@@ -1487,13 +1488,18 @@ function renderDrugsTable(){
     if(d.priceStrip)priceLines.push(`Strip: ${fmtCur(d.priceStrip)}`);
     if(d.priceDus)priceLines.push(`Dus: ${fmtCur(d.priceDus)}`);
     const priceDisplay=priceLines.length?priceLines.join("<br>"):fmtCur(d.price||0);
+    const costLines=[];
+    if(d.costTablet)costLines.push(`Tablet: ${fmtCur(d.costTablet)}${d.ppnTablet?"":" *"}`);
+    if(d.costStrip)costLines.push(`Strip: ${fmtCur(d.costStrip)}${d.ppnStrip?"":" *"}`);
+    if(d.costDus)costLines.push(`Dus: ${fmtCur(d.costDus)}${d.ppnDus?"":" *"}`);
+    const costDisplay=costLines.length?costLines.join("<br>"):(d.cost?fmtCur(d.cost):"-");
     return`<tr>
       <td style="font-weight:700">${esc(d.name)}</td>
       <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;background:#f1f5f9;padding:2px 8px;border-radius:6px">${esc(d.batch)}</span></td>
       <td>${unitBadge(d.unitJual)}</td>
       <td>${badge(d.stock+" "+d.unitJual,d.stock<=d.minStock?"bg-red":"bg-green")}</td>
       <td style="font-weight:700;font-size:12px;line-height:1.6">${priceDisplay}</td>
-      <td style="color:var(--muted)">${fmtCur(d.cost)}${d.costHasPPN!==undefined?`<div style="font-size:10.5px;color:var(--muted)">${d.costHasPPN?"termasuk PPN":"blm PPN → +11%"}</div>`:""}</td>
+      <td style="color:var(--muted);font-size:12px;line-height:1.6">${costDisplay}<div style="font-size:10px;color:var(--muted);margin-top:2px">* blm PPN (+11% dihitung)</div></td>
       <td>${badge(d.expiry,diff<=0?"bg-red":diff<=30?"bg-yellow":"bg-green")}</td>
       <td style="color:var(--muted);font-size:12px">${esc(d.supplier)}</td>
       <td><div style="display:flex;gap:6px">
@@ -1505,11 +1511,57 @@ function renderDrugsTable(){
 }
 function openDrugModal(id){
   const drugs=getDrugs();
-  const d=id?drugs.find(x=>x.id===id):{name:"",batch:"",unitJual:"Tablet",unitStrip:10,unitDus:10,priceTablet:"",priceStrip:"",priceDus:"",cost:"",costHasPPN:false,stock:"",minStock:10,expiry:"",supplier:""};
+  const d=id?drugs.find(x=>x.id===id):{
+    name:"",batch:"",unitJual:"Tablet",unitStrip:10,unitDus:10,
+    priceTablet:"",priceStrip:"",priceDus:"",
+    costTablet:"",costStrip:"",costDus:"",
+    ppnTablet:false,ppnStrip:false,ppnDus:false,
+    marginModeTablet:"percent",marginModeStrip:"percent",marginModeDus:"percent",
+    marginValueTablet:"",marginValueStrip:"",marginValueDus:"",
+    stock:"",minStock:10,expiry:"",supplier:""
+  };
   const satuanOpts=SATUAN_LIST.map(s=>`<option${d.unitJual===s?" selected":""}>${s}</option>`).join("");
+
+  const unitRow=(label,key)=>{
+    const cost=d["cost"+key]||"";
+    const ppn=d["ppn"+key]||false;
+    const mMode=d["marginMode"+key]||"percent";
+    const mVal=d["marginValue"+key]!==undefined&&d["marginValue"+key]!==""?d["marginValue"+key]:"";
+    const price=d["price"+key]||"";
+    return`
+    <div style="border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">${label}</div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Harga Beli dari PBF</label>
+          <input type="number" class="inp unit-cost" data-key="${key}" id="f-cost-${key}" value="${cost}" placeholder="0" oninput="recalcUnitPrice('${key}')"/>
+        </div>
+        <div class="form-group"><label class="form-label">Status PPN</label>
+          <select class="inp" id="f-ppn-${key}" onchange="recalcUnitPrice('${key}')">
+            <option value="false"${!ppn?" selected":""}>Belum termasuk PPN</option>
+            <option value="true"${ppn?" selected":""}>Sudah termasuk PPN (11%)</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Mode Margin</label>
+          <select class="inp" id="f-margin-mode-${key}" onchange="recalcUnitPrice('${key}')">
+            <option value="percent"${mMode==="percent"?" selected":""}>Persen (%)</option>
+            <option value="rupiah"${mMode==="rupiah"?" selected":""}>Rupiah (Rp)</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Nilai Margin</label>
+          <input type="number" class="inp" id="f-margin-value-${key}" value="${mVal}" placeholder="Cth: 20 atau 5000" oninput="recalcUnitPrice('${key}')"/>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Harga Jual (otomatis, bisa diedit manual)</label>
+          <input type="number" class="inp" id="f-price-${key}" value="${price}" placeholder="Harga jual"/>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px" id="preview-${key}"></div>
+        </div>
+      </div>
+    </div>`;
+  };
+
   document.getElementById("modal-area").innerHTML=`
   <div class="modal-bg" onclick="closeModal()">
-    <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal modal-lg" onclick="event.stopPropagation()">
       <div class="modal-title">${id?"Edit Data Obat":"Tambah Obat Baru"}</div>
       <div class="form-grid">
         <div class="form-group full"><label class="form-label">Nama Obat *</label><input class="inp" id="f-name" value="${esc(d.name)}"/></div>
@@ -1519,21 +1571,15 @@ function openDrugModal(id){
         </div>
         <div class="form-group"><label class="form-label">Isi per Strip</label><input type="number" class="inp" id="f-strip" value="${d.unitStrip||""}" placeholder="Cth: 10"/></div>
         <div class="form-group"><label class="form-label">Strip per Dus</label><input type="number" class="inp" id="f-dus" value="${d.unitDus||""}" placeholder="Cth: 10"/></div>
-        <div class="form-group full">
-          <div class="info-box" style="margin-bottom:0">💡 Isi harga jual untuk tiap satuan yang tersedia. Kosongkan jika satuan tersebut tidak dijual terpisah.</div>
-        </div>
-        <div class="form-group"><label class="form-label">Harga Jual /Tablet-Kapsul</label><input type="number" class="inp" id="f-price-tablet" value="${d.priceTablet||""}" placeholder="Harga per biji"/></div>
-        <div class="form-group"><label class="form-label">Harga Jual /Strip</label><input type="number" class="inp" id="f-price-strip" value="${d.priceStrip||""}" placeholder="Harga per strip"/></div>
-        <div class="form-group"><label class="form-label">Harga Jual /Dus</label><input type="number" class="inp" id="f-price-dus" value="${d.priceDus||""}" placeholder="Harga per dus"/></div>
-        <div class="form-group"><label class="form-label">Harga Beli dari PBF (per satuan utama)</label><input type="number" class="inp" id="f-cost" value="${d.cost}" oninput="updateCostPreview()"/></div>
-        <div class="form-group">
-          <label class="form-label">Status PPN Harga Beli</label>
-          <select class="inp" id="f-ppn" onchange="updateCostPreview()">
-            <option value="false"${!d.costHasPPN?" selected":""}>Belum termasuk PPN</option>
-            <option value="true"${d.costHasPPN?" selected":""}>Sudah termasuk PPN (11%)</option>
-          </select>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px" id="cost-preview"></div>
-        </div>
+      </div>
+
+      <div class="info-box">💡 Isi harga beli per satuan yang tersedia, atur margin keuntungan (persen atau rupiah), harga jual akan dihitung otomatis. Kosongkan satuan yang tidak dijual terpisah. Harga jual tetap bisa diedit manual sesuai kebutuhan.</div>
+
+      ${unitRow("Tablet / Kapsul","Tablet")}
+      ${unitRow("Strip","Strip")}
+      ${unitRow("Dus","Dus")}
+
+      <div class="form-grid">
         <div class="form-group"><label class="form-label">Stok (dalam satuan utama) *</label><input type="number" class="inp" id="f-stock" value="${d.stock}"/></div>
         <div class="form-group"><label class="form-label">Stok Minimum</label><input type="number" class="inp" id="f-min" value="${d.minStock}"/></div>
         <div class="form-group"><label class="form-label">Tanggal ED *</label><input type="date" class="inp" id="f-expiry" value="${d.expiry}"/></div>
@@ -1545,51 +1591,85 @@ function openDrugModal(id){
       </div>
     </div>
   </div>`;
-  updateCostPreview();
+  ["Tablet","Strip","Dus"].forEach(k=>recalcUnitPrice(k,true));
 }
 
-function updateCostPreview(){
-  const costEl=document.getElementById("f-cost");
-  const ppnEl=document.getElementById("f-ppn");
-  const previewEl=document.getElementById("cost-preview");
-  if(!costEl||!ppnEl||!previewEl) return;
-  const cost=parseFloat(costEl.value)||0;
+// Hitung harga jual otomatis = harga beli (net PPN) + margin, tampilkan preview.
+// Dipanggil setiap kali cost/PPN/mode-margin/nilai-margin berubah.
+// skipOverwrite=true dipakai saat pertama buka form (supaya harga jual yang sudah tersimpan tidak tertimpa).
+function recalcUnitPrice(key, skipOverwrite){
+  const costEl=document.getElementById(`f-cost-${key}`);
+  const ppnEl=document.getElementById(`f-ppn-${key}`);
+  const modeEl=document.getElementById(`f-margin-mode-${key}`);
+  const valEl=document.getElementById(`f-margin-value-${key}`);
+  const priceEl=document.getElementById(`f-price-${key}`);
+  const previewEl=document.getElementById(`preview-${key}`);
+  if(!costEl||!ppnEl||!modeEl||!valEl||!priceEl) return;
+
+  const costInput=parseFloat(costEl.value)||0;
   const hasPPN=ppnEl.value==="true";
-  if(cost<=0){previewEl.textContent="";return;}
-  if(hasPPN){
-    previewEl.textContent=`Harga sebelum PPN: ${fmtCur(Math.round(cost/1.11))}`;
-  } else {
-    const withPPN=Math.round(cost*1.11);
-    previewEl.textContent=`Harga + PPN 11%: ${fmtCur(withPPN)}`;
+  const mode=modeEl.value;
+  const marginVal=parseFloat(valEl.value)||0;
+
+  if(costInput<=0){ previewEl.textContent=""; return; }
+
+  // Normalisasi ke harga beli SUDAH termasuk PPN (basis konsisten untuk margin & COGS)
+  const costWithPPN = hasPPN ? costInput : Math.round(costInput*1.11);
+
+  let margin=0;
+  if(mode==="percent") margin=Math.round(costWithPPN*marginVal/100);
+  else margin=Math.round(marginVal);
+
+  const autoPrice = costWithPPN + margin;
+
+  previewEl.textContent = `Harga beli +PPN: ${fmtCur(costWithPPN)} · Margin: ${fmtCur(margin)} · Harga jual otomatis: ${fmtCur(autoPrice)}`;
+
+  // Isi harga jual otomatis kalau field masih kosong ATAU dipanggil dari perubahan cost/margin (bukan saat buka form pertama kali untuk obat yang sudah punya harga custom)
+  if(!skipOverwrite){
+    priceEl.value = autoPrice;
+  } else if(!priceEl.value){
+    priceEl.value = autoPrice;
   }
 }
 
 async function saveDrug(id){
   const name=document.getElementById("f-name").value.trim();
   const batch=document.getElementById("f-batch").value.trim();
-  const priceTablet=parseFloat(document.getElementById("f-price-tablet").value)||0;
-  const priceStrip=parseFloat(document.getElementById("f-price-strip").value)||0;
-  const priceDus=parseFloat(document.getElementById("f-price-dus").value)||0;
   const stock=parseInt(document.getElementById("f-stock").value);
   const expiry=document.getElementById("f-expiry").value;
   const unitJual=document.getElementById("f-unit").value;
 
-  if(!name||!batch||isNaN(stock)||!expiry){showToast("Lengkapi field wajib (*)","err");return;}
-  if(!priceTablet&&!priceStrip&&!priceDus){showToast("Isi minimal satu harga jual","err");return;}
+  const unitData={};
+  ["Tablet","Strip","Dus"].forEach(key=>{
+    const costInput=parseFloat(document.getElementById(`f-cost-${key}`).value)||0;
+    const hasPPN=document.getElementById(`f-ppn-${key}`).value==="true";
+    const marginMode=document.getElementById(`f-margin-mode-${key}`).value;
+    const marginValue=parseFloat(document.getElementById(`f-margin-value-${key}`).value)||0;
+    const price=parseFloat(document.getElementById(`f-price-${key}`).value)||0;
+    // Simpan cost dalam basis "sudah termasuk PPN" supaya konsisten untuk kalkulasi COGS
+    const costWithPPN = costInput>0 ? (hasPPN?costInput:Math.round(costInput*1.11)) : 0;
+    unitData["cost"+key]=costWithPPN;
+    unitData["costInputRaw"+key]=costInput;
+    unitData["ppn"+key]=hasPPN;
+    unitData["marginMode"+key]=marginMode;
+    unitData["marginValue"+key]=marginValue;
+    unitData["price"+key]=price;
+  });
 
-  const costInput=parseFloat(document.getElementById("f-cost").value)||0;
-  const hasPPN=document.getElementById("f-ppn").value==="true";
-  // Normalize cost to "sudah termasuk PPN" basis for consistent storage & COGS calc
-  const costWithPPN = hasPPN ? costInput : Math.round(costInput*1.11);
+  if(!name||!batch||isNaN(stock)||!expiry){showToast("Lengkapi field wajib (*)","err");return;}
+  if(!unitData.priceTablet&&!unitData.priceStrip&&!unitData.priceDus){showToast("Isi minimal satu harga jual","err");return;}
+
+  // 'cost' & legacy 'price' dipertahankan untuk kompatibilitas laporan COGS lama — mengikuti satuan utama yang dijual di kasir
+  const costMain = unitJual==="Dus"?unitData.costDus:(unitJual==="Strip"?unitData.costStrip:unitData.costTablet);
+  const priceMain = unitJual==="Dus"?unitData.priceDus:(unitJual==="Strip"?unitData.priceStrip:unitData.priceTablet);
 
   const obj={
     name,batch,unitJual,
     unitStrip:parseInt(document.getElementById("f-strip").value)||10,
     unitDus:parseInt(document.getElementById("f-dus").value)||10,
-    priceTablet,priceStrip,priceDus,
-    // legacy 'price' kept in sync with the main unit's price so old code paths (reports) still work
-    price: unitJual==="Dus"?priceDus:(unitJual==="Strip"?priceStrip:priceTablet),
-    cost:costWithPPN, costInputRaw:costInput, costHasPPN:hasPPN,
+    ...unitData,
+    price: priceMain,
+    cost: costMain,
     stock,minStock:parseInt(document.getElementById("f-min").value)||10,
     expiry,supplier:document.getElementById("f-supplier").value
   };
@@ -1739,7 +1819,13 @@ function renderReports(){
   else if(period==="week"){const w=new Date();w.setDate(w.getDate()-7);list=sales.filter(s=>new Date(s.date)>=w);}
   else if(period==="month")list=sales.filter(s=>s.date.startsWith(now.toISOString().slice(0,7)));
   const rev=list.reduce((a,s)=>a+s.total,0);
-  const cogs=list.reduce((a,s)=>a+s.items.reduce((b,i)=>{const d=drugs.find(x=>x.id===i.drugId);return b+(d?d.cost*i.qty:0);},0),0);
+  const cogs=list.reduce((a,s)=>a+s.items.reduce((b,i)=>{
+    const d=drugs.find(x=>x.id===i.drugId);
+    if(!d) return b;
+    const unitCost = i.unitJual==="Dus"?d.costDus:(i.unitJual==="Strip"?d.costStrip:d.costTablet);
+    const cost = unitCost || d.cost || 0;
+    return b+cost*i.qty;
+  },0),0);
   document.getElementById("report-stats").innerHTML=[
     {label:"Total Penjualan",val:fmtCur(rev),c:"#0f7a3d"},
     {label:"Total Transaksi",val:list.length+"x",c:"#7c3aed"},
